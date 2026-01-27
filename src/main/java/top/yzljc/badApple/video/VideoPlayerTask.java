@@ -1,10 +1,9 @@
-package top.yzljc.badApple;
+package top.yzljc.badApple.video;
 
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.util.Vector;
 
 public class VideoPlayerTask extends BukkitRunnable {
 

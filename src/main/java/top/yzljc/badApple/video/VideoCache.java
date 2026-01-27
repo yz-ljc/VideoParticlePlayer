@@ -1,4 +1,4 @@
-package top.yzljc.badApple;
+package top.yzljc.badApple.video;
 
 import org.jcodec.api.FrameGrab;
 import org.jcodec.common.io.NIOUtils;

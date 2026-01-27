@@ -6,6 +6,8 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
+import top.yzljc.badApple.video.VideoCache;
+import top.yzljc.badApple.video.VideoPlayerTask;
 
 import java.io.File;
 
