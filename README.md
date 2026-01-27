@@ -1,4 +1,5 @@
 ##### AI代码随便看看得了，没啥技术玩意，我纯整活玩的
+##### 推荐的视频模板：https://www.bilibili.com/video/BV1xx411c79H
 - - -
 ## /badapple 指令用法
 
