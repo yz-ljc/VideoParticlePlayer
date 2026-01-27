@@ -1,0 +1,11 @@
+name: BadApple
+version: '1.0'
+main: top.yzljc.badApple.BadApple
+api-version: '1.21'
+authors: [yz-ljc]
+description: Plays Bad Apple using particles
+commands:
+  badapple:
+    description: Control the video playback
+    usage: /badapple <load|play|stop>
+    permission: badapple.use
