@@ -53,7 +53,7 @@ processResources {
 
 shadowJar {
     // 重定位 JCodec 防止与其他插件冲突
-    relocate 'org.jcodec', 'top.yzljc.badApple.libs.jcodec'
+    relocate 'org.jcodec', 'top.yzljc.playVideo.libs.jcodec'
     minimize()
     // 合并 META-INF 服务文件，防止 SPI/ServiceLoader 问题
     mergeServiceFiles()
