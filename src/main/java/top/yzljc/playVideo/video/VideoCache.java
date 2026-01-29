@@ -47,7 +47,7 @@ public class VideoCache {
 
             frameCount++;
             if (frameCount % 50 == 0) {
-                System.out.println("Processing frame: " + frameCount);
+                logger.info("Processing frame: " + frameCount);
             }
         }
     }
