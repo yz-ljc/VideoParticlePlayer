@@ -1,11 +1,12 @@
-name: BadApple
-version: '1.0'
-main: top.yzljc.badApple.BadApple
+name: VideoParticlePlayer
+version: '2.0'
+main: top.yzljc.playVideo.PlayVideo
 api-version: '1.21'
 authors: [yz-ljc]
-description: Plays Bad Apple using particles
+description: Plays videos using particles with color support
 commands:
-  badapple:
+  playvideo:
     description: Control the video playback
-    usage: /badapple <load|play|stop>
-    permission: badapple.use
+    aliases: [pv]
+    usage: /playvideo <load|play|stop> [filename]
+    permission: playvideo.use

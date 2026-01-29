@@ -1,28 +1,37 @@
-package top.yzljc.badApple.video;
+package top.yzljc.playVideo.video;
 
+import org.bukkit.plugin.java.JavaPlugin;
 import org.jcodec.api.FrameGrab;
 import org.jcodec.common.io.NIOUtils;
 import org.jcodec.common.model.Picture;
 import org.jcodec.scale.AWTUtil;
+import top.yzljc.playVideo.PlayVideo;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 public class VideoCache {
 
-    private final List<boolean[]> frames = new ArrayList<>();
+    private final List<int[]> frames = new ArrayList<>();
     private final int width;
     private final int height;
+    private final Logger logger;
+    private final double frameRate;
 
-    private static final int THRESHOLD = 128;
-
-    public VideoCache(File videoFile, int targetWidth) throws Exception {
+    public VideoCache(JavaPlugin plugin, File videoFile, int targetWidth) throws Exception {
         this.width = targetWidth;
-
+        this.logger = plugin.getLogger();
         FrameGrab grab = FrameGrab.createFrameGrab(NIOUtils.readableChannel(videoFile));
         Picture picture = grab.getNativeFrame();
+
+        if (picture == null) {
+            throw new RuntimeException("无法读取视频第一帧！");
+        }
+
+        this.frameRate = 30.0; // default FPS
 
         double aspectRatio = (double) picture.getHeight() / picture.getWidth();
         this.height = (int) (targetWidth * aspectRatio);
@@ -33,38 +42,29 @@ public class VideoCache {
         Picture frame;
         while ((frame = grab.getNativeFrame()) != null) {
             BufferedImage bufImg = AWTUtil.toBufferedImage(frame);
-
-            boolean[] frameData = processImage(bufImg, width, height);
+            int[] frameData = processImage(bufImg, width, height);
             frames.add(frameData);
 
             frameCount++;
-            if (frameCount % 100 == 0) {
-                System.out.println("已加载帧数: " + frameCount);
+            if (frameCount % 50 == 0) {
+                System.out.println("Processing frame: " + frameCount);
             }
         }
     }
 
-    private boolean[] processImage(BufferedImage original, int w, int h) {
+    private int[] processImage(BufferedImage original, int w, int h) {
         java.awt.Image tmp = original.getScaledInstance(w, h, java.awt.Image.SCALE_SMOOTH);
-        BufferedImage resized = new BufferedImage(w, h, BufferedImage.TYPE_BYTE_GRAY);
+        BufferedImage resized = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
         resized.getGraphics().drawImage(tmp, 0, 0, null);
 
-        boolean[] data = new boolean[w * h];
-
-        for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
-                int rgb = resized.getRGB(x, y) & 0xFF;
-                data[y * w + x] = rgb > THRESHOLD;
-            }
-        }
-        return data;
+        return resized.getRGB(0, 0, w, h, null, 0, w);
     }
 
     public int getWidth() { return width; }
     public int getHeight() { return height; }
     public int getTotalFrames() { return frames.size(); }
 
-    public boolean[] getFrame(int index) {
+    public int[] getFrame(int index) {
         if (index < 0 || index >= frames.size()) return null;
         return frames.get(index);
     }
