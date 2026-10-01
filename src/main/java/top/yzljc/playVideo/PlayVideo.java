@@ -5,7 +5,9 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
+import top.yzljc.playVideo.video.CushionVideoPlayerTask;
 import top.yzljc.playVideo.video.VideoCache;
 import top.yzljc.playVideo.video.VideoPlayerTask;
 
@@ -16,7 +18,7 @@ import java.util.Map;
 public class PlayVideo extends JavaPlugin implements CommandExecutor {
 
     private final Map<String, VideoCache> loadedVideos = new HashMap<>();
-    private VideoPlayerTask currentTask;
+    private BukkitRunnable currentTask;
 
     @Override
     public void onEnable() {
@@ -29,7 +31,7 @@ public class PlayVideo extends JavaPlugin implements CommandExecutor {
         }
 
         getLogger().info("插件已加载！支持多视频播放。");
-        getLogger().info("使用方法: /pv load <文件名> | /pv play <文件名> [FPS]");
+        getLogger().info("使用方法: /pv load <文件名> | /pv play <文件名> [FPS] | /pv play <文件名> cushion [FPS] [宽度]");
     }
 
     @Override
@@ -39,8 +41,13 @@ public class PlayVideo extends JavaPlugin implements CommandExecutor {
     }
 
     private void stopCurrentTask() {
-        if (currentTask != null && !currentTask.isCancelled()) {
-            currentTask.cancel();
+        if (currentTask != null) {
+            if (currentTask instanceof CushionVideoPlayerTask cushionTask) {
+                cushionTask.cleanup();
+            }
+            if (!currentTask.isCancelled()) {
+                currentTask.cancel();
+            }
             currentTask = null;
         }
     }
@@ -53,7 +60,7 @@ public class PlayVideo extends JavaPlugin implements CommandExecutor {
         }
 
         if (args.length == 0) {
-            sender.sendMessage("§c用法: /pv <load|play|stop> [文件名] [FPS]");
+            sender.sendMessage("§c用法: /pv load <文件名> | /pv play <文件名> [FPS] | /pv play <文件名> cushion [FPS] [宽度] | /pv stop");
             return true;
         }
 
@@ -87,7 +94,7 @@ public class PlayVideo extends JavaPlugin implements CommandExecutor {
                         getServer().getScheduler().runTask(this, () -> {
                             loadedVideos.put(fileName, cache);
                             sender.sendMessage("§a视频 " + fileName + " 加载完成！");
-                            sender.sendMessage("§a总帧数: " + cache.getTotalFrames() + " | 分辨率: " + cache.getWidth() + "x" + cache.getHeight());
+                            sender.sendMessage("§a总帧数: " + cache.getTotalFrames() + " | 原画: " + cache.getSourceWidth() + "x" + cache.getSourceHeight() + " | 粒子: " + cache.getWidth() + "x" + cache.getHeight());
                             sender.sendMessage("§a输入 /pv play " + fileName + " 即可播放");
                         });
                     } catch (Exception e) {
@@ -118,30 +125,66 @@ public class PlayVideo extends JavaPlugin implements CommandExecutor {
                     return true;
                 }
 
-                double fps = 30.0;
-                if (args.length >= 3) {
+                boolean cushionMode = args.length >= 3 && args[2].equalsIgnoreCase("cushion");
+                int fpsArg = cushionMode ? 3 : 2;
+                double fps = cushionMode ? 20.0 : 30.0;
+                if (args.length > fpsArg) {
                     try {
-                        fps = Double.parseDouble(args[2]);
+                        fps = Double.parseDouble(args[fpsArg]);
                     } catch (NumberFormatException e) {
-                        sender.sendMessage("§cFPS 参数错误，使用默认值 30");
+                        sender.sendMessage("§cFPS 必须是数字。");
+                        return true;
+                    }
+                }
+                if (!Double.isFinite(fps) || fps <= 0) {
+                    sender.sendMessage("§cFPS 必须大于 0。");
+                    return true;
+                }
+
+                int cushionWidth = cache.getSourceWidth();
+                if (cushionMode && args.length >= 5) {
+                    try {
+                        cushionWidth = Integer.parseInt(args[4]);
+                    } catch (NumberFormatException e) {
+                        sender.sendMessage("§c坐垫画面宽度必须是整数。");
+                        return true;
                     }
                 }
 
                 stopCurrentTask();
 
-                double spacing = 0.25;
+                if (cushionMode) {
+                    CushionVideoPlayerTask task = null;
+                    try {
+                        task = new CushionVideoPlayerTask(cache, player, fps, cushionWidth);
+                        task.prepare();
+                        task.runTaskTimer(this, 0L, 1L);
+                        currentTask = task;
+                        sender.sendMessage("§a正在准备坐垫画面: " + fileName + " (" + task.getWidth() + "x" + task.getHeight() + ", " + fps + " FPS)");
+                    } catch (RuntimeException e) {
+                        if (task != null) {
+                            task.cleanup();
+                        }
+                        sender.sendMessage("§c坐垫播放失败: " + e.getMessage());
+                        getLogger().warning("坐垫播放失败: " + e.getMessage());
+                    }
+                    return true;
+                }
 
-                currentTask = new VideoPlayerTask(cache, player.getLocation().add(0, 3, 0), spacing, fps);
-                currentTask.runTaskTimer(this, 0L, 1L);
+                double spacing = 0.25;
+                VideoPlayerTask task = new VideoPlayerTask(cache, player.getLocation().add(0, 3, 0), spacing, fps);
+                task.runTaskTimer(this, 0L, 1L);
+                currentTask = task;
 
                 sender.sendMessage("§a开始播放: " + fileName + " (FPS: " + fps + ")");
                 return true;
             }
             case "stop" -> {
-                if (currentTask != null) {
+                if (currentTask != null && !currentTask.isCancelled()) {
                     stopCurrentTask();
                     sender.sendMessage("§a已停止播放。");
                 } else {
+                    stopCurrentTask();
                     sender.sendMessage("§c当前没有正在播放的视频。");
                 }
                 return true;

@@ -1,12 +1,12 @@
 name: VideoParticlePlayer
-version: '2.0'
+version: '${version}'
 main: top.yzljc.playVideo.PlayVideo
-api-version: '1.21'
+api-version: '26.3'
 authors: [yz-ljc]
-description: Plays videos using particles with color support
+description: Plays videos using particles or cushions
 commands:
   playvideo:
     description: Control the video playback
     aliases: [pv]
-    usage: /playvideo <load|play|stop> [filename]
+    usage: /playvideo <load|play|stop> [filename] [cushion] [fps] [width]
     permission: playvideo.use

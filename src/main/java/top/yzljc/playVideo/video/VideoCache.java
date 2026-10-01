@@ -3,9 +3,9 @@ package top.yzljc.playVideo.video;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jcodec.api.FrameGrab;
 import org.jcodec.common.io.NIOUtils;
+import org.jcodec.common.io.SeekableByteChannel;
 import org.jcodec.common.model.Picture;
 import org.jcodec.scale.AWTUtil;
-import top.yzljc.playVideo.PlayVideo;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -18,37 +18,35 @@ public class VideoCache {
     private final List<int[]> frames = new ArrayList<>();
     private final int width;
     private final int height;
+    private final int sourceWidth;
+    private final int sourceHeight;
+    private final File sourceFile;
     private final Logger logger;
-    private final double frameRate;
 
     public VideoCache(JavaPlugin plugin, File videoFile, int targetWidth) throws Exception {
         this.width = targetWidth;
+        this.sourceFile = videoFile;
         this.logger = plugin.getLogger();
-        FrameGrab grab = FrameGrab.createFrameGrab(NIOUtils.readableChannel(videoFile));
-        Picture picture = grab.getNativeFrame();
-
-        if (picture == null) {
-            throw new RuntimeException("无法读取视频第一帧！");
-        }
-
-        this.frameRate = 30.0; // default FPS
-
-        double aspectRatio = (double) picture.getHeight() / picture.getWidth();
-        this.height = (int) (targetWidth * aspectRatio);
-
-        grab = FrameGrab.createFrameGrab(NIOUtils.readableChannel(videoFile));
-
-        int frameCount = 0;
-        Picture frame;
-        while ((frame = grab.getNativeFrame()) != null) {
-            BufferedImage bufImg = AWTUtil.toBufferedImage(frame);
-            int[] frameData = processImage(bufImg, width, height);
-            frames.add(frameData);
-
-            frameCount++;
-            if (frameCount % 50 == 0) {
-                logger.info("Processing frame: " + frameCount);
+        try (SeekableByteChannel channel = NIOUtils.readableChannel(videoFile)) {
+            FrameGrab grab = FrameGrab.createFrameGrab(channel);
+            Picture first = grab.getNativeFrame();
+            if (first == null) {
+                throw new IllegalArgumentException("无法读取视频第一帧！");
             }
+            this.sourceWidth = first.getWidth();
+            this.sourceHeight = first.getHeight();
+            this.height = Math.max(1, (int) Math.round((double) targetWidth * sourceHeight / sourceWidth));
+
+            int frameCount = 0;
+            Picture frame = first;
+            do {
+                BufferedImage bufImg = AWTUtil.toBufferedImage(frame);
+                frames.add(processImage(bufImg, width, height));
+                frameCount++;
+                if (frameCount % 50 == 0) {
+                    logger.info("Processing frame: " + frameCount);
+                }
+            } while ((frame = grab.getNativeFrame()) != null);
         }
     }
 
@@ -62,6 +60,9 @@ public class VideoCache {
 
     public int getWidth() { return width; }
     public int getHeight() { return height; }
+    public int getSourceWidth() { return sourceWidth; }
+    public int getSourceHeight() { return sourceHeight; }
+    public File getSourceFile() { return sourceFile; }
     public int getTotalFrames() { return frames.size(); }
 
     public int[] getFrame(int index) {
